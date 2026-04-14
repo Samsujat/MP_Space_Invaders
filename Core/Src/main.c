@@ -90,6 +90,7 @@ osMutexId MutexLCDHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_LTDC_Init(void);
@@ -224,6 +225,7 @@ struct Monster Table_ennemis[8][3];
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
   static TS_StateTypeDef TS_State;
   ADC_ChannelConfTypeDef sConfig = {0};
@@ -243,6 +245,9 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
+
+  /* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
@@ -353,6 +358,7 @@ int main(void)
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -400,15 +406,16 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
+
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -424,12 +431,14 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Activate the Over-Drive mode
   */
   if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -443,6 +452,18 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+  /** Initializes the peripherals clock
+  */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
@@ -474,6 +495,7 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 1 */
 
   /* USER CODE END ADC1_Init 1 */
+
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
@@ -492,6 +514,7 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
+
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_0;
@@ -524,6 +547,7 @@ static void MX_ADC3_Init(void)
   /* USER CODE BEGIN ADC3_Init 1 */
 
   /* USER CODE END ADC3_Init 1 */
+
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc3.Instance = ADC3;
@@ -542,6 +566,7 @@ static void MX_ADC3_Init(void)
   {
     Error_Handler();
   }
+
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_8;
@@ -605,6 +630,7 @@ static void MX_DAC_Init(void)
   /* USER CODE BEGIN DAC_Init 1 */
 
   /* USER CODE END DAC_Init 1 */
+
   /** DAC Initialization
   */
   hdac.Instance = DAC;
@@ -612,6 +638,7 @@ static void MX_DAC_Init(void)
   {
     Error_Handler();
   }
+
   /** DAC channel OUT1 config
   */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
@@ -1088,6 +1115,9 @@ static void MX_FMC_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -1136,7 +1166,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : ARDUINO_SCL_D15_Pin ARDUINO_SDA_D14_Pin */
   GPIO_InitStruct.Pin = ARDUINO_SCL_D15_Pin|ARDUINO_SDA_D14_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -1310,7 +1340,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : LCD_SCL_Pin LCD_SDA_Pin */
   GPIO_InitStruct.Pin = LCD_SCL_Pin|LCD_SDA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
   HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
@@ -1331,6 +1361,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -1375,7 +1408,10 @@ void repopulate_ennemie_list(uint8_t wave)
 }
 
 void update_leds(){
-    for (int idx = 0; idx<=8; idx++){
+    /* Leds[] contains 8 elements (indices 0..7). Use < sizeof to avoid
+       out-of-bounds memory corruption which can make other peripherals (eg
+       ADC/threads) behave unpredictably. */
+    for (int idx = 0; idx < (int)(sizeof(Leds) / sizeof(Leds[0])); idx++){
       HAL_GPIO_WritePin(Leds[idx].port, Leds[idx].pin, !(charge-1<idx));
     }
 }
@@ -1543,8 +1579,8 @@ void f_Joueur_1(void const * argument)
   enum End_type end = END_MORT_JOUEUR;
   // Paramètre de l'écran pour la reprouductibilité
 
-  uint32_t LCD_HEIGHT = BSP_LCD_GetXSize();
-  uint32_t LCD_WIDTH = BSP_LCD_GetYSize();
+  uint32_t LCD_WIDTH = BSP_LCD_GetXSize();
+  uint32_t LCD_HEIGHT = BSP_LCD_GetYSize();
 
   const uint32_t seuil_joystick = 200;
   const uint32_t centre_joystick = 2048;
@@ -1555,22 +1591,27 @@ void f_Joueur_1(void const * argument)
     // BSP_LCD_DrawBitmap(uint32_t Xpos, uint32_t Ypos, uint8_t *pbmp)
     HAL_ADC_ConfigChannel(&hadc3, &sConfig3);
     HAL_ADC_Start(&hadc3);
-    while (HAL_ADC_PollForConversion(&hadc3, 100) != HAL_OK)
-      ;
+    while (HAL_ADC_PollForConversion(&hadc3, 100) != HAL_OK);
     joystick_h = HAL_ADC_GetValue(&hadc3);
 
-    HAL_ADC_ConfigChannel(&hadc1, &sConfig1);
+    HAL_ADC_ConfigChannel(&hadc1, &sConfig3);
     HAL_ADC_Start(&hadc1);
-    while (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK)
-      ;
+    while (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK);
     joystick_v = HAL_ADC_GetValue(&hadc1);
 
-    if ((joueur.y < LCD_WIDTH - joueur_width - joueur.dy) && (joystick_h < centre_joystick - seuil_joystick))
+    /* Debug: afficher les valeurs brutes du joystick pour diagnostic */
+    {
+      char dbg[64];
+      sprintf(dbg, "J H:%4u V:%4u", (unsigned)joystick_h, (unsigned)joystick_v);
+      lcd_plot_text_line(2, (uint8_t*)dbg, LCD_COLOR_YELLOW);
+    }
+
+    if ((joueur.y < LCD_HEIGHT - joueur_width - joueur.dy) && (joystick_h < centre_joystick - seuil_joystick))
       joueur.y += joueur.dy;
     if ((joueur.y > joueur.dy) && (joystick_h > centre_joystick + seuil_joystick))
       joueur.y -= joueur.dy;
 
-    if ((joueur.x < LCD_HEIGHT - joueur_height - joueur.dx) && (joystick_v < centre_joystick - seuil_joystick))
+    if ((joueur.x < LCD_WIDTH - joueur_height - joueur.dx) && (joystick_v < centre_joystick - seuil_joystick))
       joueur.x += joueur.dx;
     if ((joueur.x > joueur.dx) && (joystick_v > centre_joystick + seuil_joystick))
       joueur.x -= joueur.dx;
@@ -1871,7 +1912,7 @@ void f_chargeur(void const * argument)
   /* USER CODE END f_chargeur */
 }
 
- /**
+/**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
@@ -1884,7 +1925,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
+  if (htim->Instance == TIM6)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -1906,8 +1948,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1923,5 +1964,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

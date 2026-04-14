@@ -214,6 +214,7 @@ void Error_Handler(void);
 #define LCD_R2_GPIO_Port GPIOJ
 #define ULPI_D4_Pin GPIO_PIN_11
 #define ULPI_D4_GPIO_Port GPIOB
+
 /* USER CODE BEGIN Private defines */
 
 
@@ -226,5 +227,3 @@ void Error_Handler(void);
 #endif
 
 #endif /* __MAIN_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
