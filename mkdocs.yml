@@ -1,0 +1,37 @@
+site_name: Space Invader's
+site_url: https://example.com/
+repo_url: https://gitlab.com/leopold_clement/Space_Invaders
+theme: 
+  "name" : "material"
+  "logo" : "logo.png"
+
+nav :
+  - 'Home' : 'index.md'
+  - 'Tutoriel' : 'tuto.md'
+  - 'Architecture du code' : 'archi.md'
+  - 'Threads' : 'thread.md'
+  - 'Classes' : 'class.md'
+  - 'Perriphériques' :
+    - 'Aléatoire' : 'rng.md'
+    - 'Leds' : 'led.md'
+    - 'Joystick' : 'joystick.md'
+  - 'Affichage' :
+    - 'Ecran' : 'lcd.md'
+    - "Génération de l'header" : 'bitmap.md'
+
+markdown_extensions:
+  - admonition
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+extra_javascript:
+  - javascripts/config.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra_css:
+  - extra.css

@@ -1,0 +1,127 @@
+@startuml Architecture_projet
+package "HAL" {
+interface "CAN Joystick" as CAN
+interface "Ecran" as LCD
+interface "GPIO" as gpio
+interface "rng" as rng
+}
+Queue "Queue_J\nchoc joueur" as Queue_J
+Queue "Queue_E\nchoc ennemie" as Queue_E
+Queue "Queue_F\nfin du jeu" as Queue_F
+Queue "Queue_N\nnouveau projectile" as Queue_N
+
+package "Varriables partagées" {
+component "Table_ennemis" as table <<black board>>
+component "joueur" as J <<black board>>
+component "Charge" as charge <<black board>>
+component "LCD" as mut_lcd <<Mutex>>
+}
+
+package "Fonctions globales"{
+component "Probabilité" as proba <<functions>>
+component "Encapsulation LCD" as emc_lcd <<functions>>
+component "Remplissage ennemis" as rempli <<function>>
+component "Mise à jour des leds" as update_led <<function>>
+}
+component t_gm[
+Thread : game_master
+===
+Bloqué en attente de messages
+---
+gère l'apparition des porjectiles,
+gère les autres Thread,
+fait l'affichage des scores
+]
+
+component t_HUD[
+Thread : HUD
+===
+T = 100 ms
+---
+Affiche :
+- La vie,
+- Le numéro de la vague,
+- Le nombre de monstre tué.
+]
+
+component t_chargeur[
+Thread : Chargeur
+===
+T = 5/8 s
+---
+Incremente la charge
+]
+
+component t_j1[
+Tread : joueur_1
+===
+T = 5 ms
+---
+gère le joystick,
+la vie du joueur,
+la position du joueur 1,
+et l'affichage du joueur
+]
+component t_ennemie[
+Tread : Ennemies
+===
+T = 200 ms
+---
+gère les ennemies
+]
+component t_proj[
+Tread : projectile
+===
+T = 10 ms
+---
+gère les projectiles
+gère les colisions
+]
+[t_j1] --( CAN : lit la valeur
+[t_proj] --> Queue_E : touché
+[t_proj] --> Queue_J : touché
+Queue_E --> [t_ennemie]
+Queue_J --> [t_j1]
+[t_j1] --> Queue_F : plus de vie
+[t_ennemie] --> Queue_F : plus d'ennemie
+Queue_F --> [t_gm]
+[t_gm] --> Queue_N : nouveau tire du joueur
+[t_j1] --> Queue_N : nouveau tire des ennemie
+Queue_N --> [t_proj]
+
+[t_j1] ..> emc_lcd : use
+[t_ennemie] ..> emc_lcd : use
+[t_proj] ..> emc_lcd : use
+[t_gm] ..> emc_lcd : use
+
+emc_lcd .> mut_lcd : use
+emc_lcd --( LCD
+
+[t_gm]..>[t_j1] : suspend
+[t_gm]..>[t_ennemie] : suspend
+[t_gm]..>[t_proj] : suspend
+
+[t_j1] ..> J : ecris
+[t_ennemie] ..> table : ecris
+[t_proj] ..> J : lis
+[t_proj] ..> table : lis
+
+t_gm ..> rempli : use
+rempli ..> table : ecris
+rempli ..> proba : use
+
+t_ennemie ..> proba : use
+
+t_j1 ..> charge : lis/ecrit
+t_chargeur ..> charge : lis/ecrit
+
+t_j1 ..> update_led : use
+t_chargeur ..> update_led : use
+
+t_j1 --( gpio
+update_led --( gpio
+
+t_HUD ..> emc_lcd : use
+
+proba --( rng
+@enduml

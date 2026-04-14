@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"stm32-for-vscode.openOCDPath": "/home/leopold/.config/Code/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/openocd/0.11.0-1.1/.content/bin/openocd",
+		"stm32-for-vscode.makePath": false,
+		"stm32-for-vscode.armToolchainPath": false,
+		"cortex-debug.armToolchainPath": "/home/leopold/.config/Code/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/arm-none-eabi-gcc/10.2.1-1.1.2/.content/bin",
+		"cortex-debug.openocdPath": "/home/leopold/.config/Code/User/globalStorage/bmd.stm32-for-vscode/@xpack-dev-tools/openocd/0.11.0-1.1/.content/bin/openocd"
+	}
+}

@@ -1,0 +1,1 @@
+﻿python3 BmpToHConvertor.py --HEADER_NAME Core/Inc/images --INPUT_FILE asset_brut/Coeur_E.bmp asset_brut/Coeur_F.bmp asset_brut/Joueur.bmp asset_brut/Ennemi_1.bmp asset_brut/Ennemi_2.bmp asset_brut/Ennemi_3.bmp asset_brut/Ennemi_4.bmp --VAR_NAMES tex_coeur_E tex_coeur_F tex_joueur tex_ennemi_1 tex_ennemi_2 tex_ennemi_3 tex_ennemi_4

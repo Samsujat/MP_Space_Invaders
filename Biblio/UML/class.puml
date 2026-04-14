@@ -1,0 +1,67 @@
+@startuml class
+class Joueur {
+  + int32_t x
+  + int32_t y
+  + int8_t dx
+  + int8_t dy
+  + int8_t health
+  + Missile missile
+  ---
+  modelise le joueur
+}
+
+class Missile{
+  + int16_t x
+  + int16_t y
+  + int8_t dx
+  + int8_t dy
+  + Camps_missile equipe
+  + uint8_t damage
+  + uint8_t valide
+  ---
+  modelise les missiles.
+}
+
+class Monster{
+  + int32_t x
+  + int32_t y
+  + int16_t health
+  + Missile missile
+  ---
+  modelise les monstres.
+}
+
+class Collision{
+  uint8_t idx1
+  uint8_t idx2
+  uint8_t damage
+  ---
+  décrit les colision entre missile et monstre.
+}
+
+enum Camps_missile{
+  MISSILE_AMI
+  MISSILE_ENNEMI
+  ---
+  décrit le camps du missile.
+}
+
+enum End_type{
+  END_TABLEAU_VIDE
+  END_MORT_JOUEUR
+  ---
+  décrit le type de fin de la partie.
+}
+
+enum Sens_ennemie{
+  DROITE
+  GAUCHE
+  ---
+  décrit le sens de déplacement actuel des ennemis.
+}
+
+Joueur *--  Missile : décrit le missile de base du joueur.
+
+Monster *--  Missile : décrit le missile de base des monstres.
+Missile *--  Camps_missile : décrit le missile de base des monstres.
+@enduml
