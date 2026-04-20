@@ -52,6 +52,10 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+
+/* ============================================================================
+ * HANDLES PERIPHERIQUES
+ * ============================================================================ */
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc3;
 
@@ -73,6 +77,10 @@ TIM_HandleTypeDef htim8;
 
 SDRAM_HandleTypeDef hsdram1;
 
+/* ============================================================================
+ * HANDLES FREERTOS — TACHES, FILES, MUTEX
+ * ============================================================================ */
+
 osThreadId GameMasterHandle;
 osThreadId Joueur_1Handle;
 osThreadId Block_EnemieHandle;
@@ -89,8 +97,12 @@ osMutexId MutexLCDHandle;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
+
+/* ============================================================================
+ * PROTOTYPAGE DES FONCTIONS
+ * ============================================================================ */
+
 void SystemClock_Config(void);
-void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_LTDC_Init(void);
@@ -111,6 +123,7 @@ void f_block_enemie(void const * argument);
 void f_projectile(void const * argument);
 void f_HUD(void const * argument);
 void f_chargeur(void const * argument);
+void f_titre(void const * argument);
 
 /* USER CODE BEGIN PFP */
 uint8_t proba_bernoulli(uint32_t numerateur, uint32_t denominateur);
@@ -119,6 +132,18 @@ uint8_t proba_tirrage(uint8_t nombre_valeur);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/* ============================================================================
+ * TYPES, ENUMERATIONS ET STRUCTURES DU JEU
+ * ============================================================================ */
+
+enum Game_State
+{
+  TITLE_SCREEN,
+  GAME_RUNNING
+};
+
+volatile enum Game_State game_state = TITLE_SCREEN;
 
 enum Camps_missile
 {
@@ -137,6 +162,10 @@ enum Sens_ennemie
   DROITE,
   GAUCHE
 };
+
+/* ============================================================================
+ * CONSTANTES ET VARIABLES GLOBALES DU JEU
+ * ============================================================================ */
 
 const uint16_t joueur_width = 15;
 const uint16_t joueur_height = 25;
@@ -223,9 +252,13 @@ struct Monster Table_ennemis[8][3];
   * @brief  The application entry point.
   * @retval int
   */
+
+/* ============================================================================
+ * FONCTION PRINCIPALE
+ * ============================================================================ */
+
 int main(void)
 {
-
   /* USER CODE BEGIN 1 */
   static TS_StateTypeDef TS_State;
   ADC_ChannelConfTypeDef sConfig = {0};
@@ -245,9 +278,6 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
-
-  /* Configure the peripherals common clocks */
-  PeriphCommonClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
@@ -352,13 +382,16 @@ int main(void)
   vQueueAddToRegistry(Queue_JHandle, "Queue Joueur");
   vQueueAddToRegistry(Queue_EHandle, "Queue Ennemie");
   vQueueAddToRegistry(Queue_FHandle, "Queue Fin");
+  osThreadId TitreHandle;
+
+  osThreadDef(Titre, f_titre, osPriorityNormal, 0, 512);
+  TitreHandle = osThreadCreate(osThread(Titre), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -406,16 +439,15 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
-
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -431,14 +463,12 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-
   /** Activate the Over-Drive mode
   */
   if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
-
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -452,18 +482,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief Peripherals Common Clock Configuration
-  * @retval None
-  */
-void PeriphCommonClock_Config(void)
-{
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
-
-  /** Initializes the peripherals clock
-  */
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
@@ -495,7 +513,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 1 */
 
   /* USER CODE END ADC1_Init 1 */
-
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
@@ -514,7 +531,6 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
-
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_0;
@@ -547,7 +563,6 @@ static void MX_ADC3_Init(void)
   /* USER CODE BEGIN ADC3_Init 1 */
 
   /* USER CODE END ADC3_Init 1 */
-
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc3.Instance = ADC3;
@@ -566,7 +581,6 @@ static void MX_ADC3_Init(void)
   {
     Error_Handler();
   }
-
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_8;
@@ -630,7 +644,6 @@ static void MX_DAC_Init(void)
   /* USER CODE BEGIN DAC_Init 1 */
 
   /* USER CODE END DAC_Init 1 */
-
   /** DAC Initialization
   */
   hdac.Instance = DAC;
@@ -638,7 +651,6 @@ static void MX_DAC_Init(void)
   {
     Error_Handler();
   }
-
   /** DAC channel OUT1 config
   */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
@@ -1115,9 +1127,6 @@ static void MX_FMC_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  /* USER CODE BEGIN MX_GPIO_Init_1 */
-
-  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -1166,7 +1175,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : ARDUINO_SCL_D15_Pin ARDUINO_SDA_D14_Pin */
   GPIO_InitStruct.Pin = ARDUINO_SCL_D15_Pin|ARDUINO_SDA_D14_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -1340,7 +1349,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : LCD_SCL_Pin LCD_SDA_Pin */
   GPIO_InitStruct.Pin = LCD_SCL_Pin|LCD_SDA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
   HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
@@ -1361,12 +1370,14 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /* USER CODE BEGIN MX_GPIO_Init_2 */
-
-  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+
+/* ============================================================================
+ * FONCTIONS UTILITAIRES DU JEU
+ * ============================================================================ */
+
 uint8_t *(tex_ennemis[4]) = {&tex_ennemi_1, &tex_ennemi_2, &tex_ennemi_3, &tex_ennemi_4};
 const uint32_t Couleur_joueur = LCD_COLOR_CYAN;
 const uint32_t Couleur_monstre = LCD_COLOR_RED;
@@ -1382,6 +1393,90 @@ static int envoie_score(int score)
   return 0;
 }
  */
+
+/*
+  * @brief  Affichage de l'écran titre
+  * @param None
+  * @retval None
+  */
+
+/* ============================================================================
+ * ECRAN TITRE
+ * ============================================================================ */
+
+void afficher_ecran_titre(void)
+{
+    while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+
+    BSP_LCD_Clear(LCD_COLOR_BLACK);
+
+    // Titre principal
+    BSP_LCD_SetFont(&Font24);
+    BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 60, (uint8_t *)"SPACE INVADERS", CENTER_MODE);
+
+    // Sous-titre
+    BSP_LCD_SetFont(&Font12);
+    BSP_LCD_SetTextColor(LCD_COLOR_CYAN);
+    BSP_LCD_DisplayStringAt(0, 95, (uint8_t *)"STM32 Edition", CENTER_MODE);
+
+    // Bouton JOUER — rectangle centré
+    // Ecran 480x272 : bouton 160x50 centré => x=160, y=170
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_DrawRect(160, 170, 160, 50);
+    BSP_LCD_SetFont(&Font20);
+    BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 187, (uint8_t *)"JOUER", CENTER_MODE);
+
+    xSemaphoreGive(MutexLCDHandle);
+}
+
+/*
+  * @brief  Tache de gestion de l'écran titre
+  * @param None
+  * @retval None
+  */
+void f_titre(void const * argument)
+{
+    static TS_StateTypeDef TS_State;
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xPeriodeTache = 50 / portTICK_PERIOD_MS;
+    afficher_ecran_titre();
+
+    for (;;)
+    {
+        if (game_state != TITLE_SCREEN)
+        {
+            vTaskDelete(NULL); // On supprime la tache une fois le jeu lancé
+            return;
+        }
+
+        BSP_TS_GetState(&TS_State);
+
+        if (TS_State.touchDetected)
+        {
+            uint16_t tx = TS_State.touchX[0];
+            uint16_t ty = TS_State.touchY[0];
+
+            // Zone du bouton JOUER : x[160..320], y[170..220]
+            if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220)
+            {
+                game_state = GAME_RUNNING;
+
+                // Effacer l'écran avant de lancer le jeu
+                while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+                BSP_LCD_Clear(LCD_COLOR_BLACK);
+                xSemaphoreGive(MutexLCDHandle);
+            }
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, xPeriodeTache);
+    }
+}
+
 void repopulate_ennemie_list(uint8_t wave)
 {
   int idx1;
@@ -1408,10 +1503,7 @@ void repopulate_ennemie_list(uint8_t wave)
 }
 
 void update_leds(){
-    /* Leds[] contains 8 elements (indices 0..7). Use < sizeof to avoid
-       out-of-bounds memory corruption which can make other peripherals (eg
-       ADC/threads) behave unpredictably. */
-    for (int idx = 0; idx < (int)(sizeof(Leds) / sizeof(Leds[0])); idx++){
+    for (int idx = 0; idx<=8; idx++){
       HAL_GPIO_WritePin(Leds[idx].port, Leds[idx].pin, !(charge-1<idx));
     }
 }
@@ -1503,6 +1595,11 @@ uint8_t colision_missile(uint16_t m_pos_x, uint16_t m_pos_y, uint16_t o_pos_x, u
   * @retval None
   */
 /* USER CODE END Header_f_GameMaster */
+
+/* ============================================================================
+ * TACHE : GAME MASTER — Gestion des fins de partie et des vagues
+ * ============================================================================ */
+
 void f_GameMaster(void const * argument)
 {
   /* init code for LWIP */
@@ -1546,8 +1643,16 @@ void f_GameMaster(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_Joueur_1 */
+
+/* ============================================================================
+ * TACHE : JOUEUR — Deplacement, tir et gestion des degats
+ * ============================================================================ */
+
 void f_Joueur_1(void const * argument)
 {
+	// Attendre que le joueur appuie sur JOUER
+	while (game_state != GAME_RUNNING)
+	    vTaskDelay(100 / portTICK_PERIOD_MS);
   /* USER CODE BEGIN f_Joueur_1 */
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
@@ -1579,8 +1684,8 @@ void f_Joueur_1(void const * argument)
   enum End_type end = END_MORT_JOUEUR;
   // Paramètre de l'écran pour la reprouductibilité
 
-  uint32_t LCD_WIDTH = BSP_LCD_GetXSize();
-  uint32_t LCD_HEIGHT = BSP_LCD_GetYSize();
+  uint32_t LCD_HEIGHT = BSP_LCD_GetXSize();
+  uint32_t LCD_WIDTH = BSP_LCD_GetYSize();
 
   const uint32_t seuil_joystick = 200;
   const uint32_t centre_joystick = 2048;
@@ -1594,24 +1699,17 @@ void f_Joueur_1(void const * argument)
     while (HAL_ADC_PollForConversion(&hadc3, 100) != HAL_OK);
     joystick_h = HAL_ADC_GetValue(&hadc3);
 
-    HAL_ADC_ConfigChannel(&hadc1, &sConfig3);
+    HAL_ADC_ConfigChannel(&hadc1, &sConfig1);
     HAL_ADC_Start(&hadc1);
     while (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK);
     joystick_v = HAL_ADC_GetValue(&hadc1);
 
-    /* Debug: afficher les valeurs brutes du joystick pour diagnostic */
-    {
-      char dbg[64];
-      sprintf(dbg, "J H:%4u V:%4u", (unsigned)joystick_h, (unsigned)joystick_v);
-      lcd_plot_text_line(2, (uint8_t*)dbg, LCD_COLOR_YELLOW);
-    }
-
-    if ((joueur.y < LCD_HEIGHT - joueur_width - joueur.dy) && (joystick_h < centre_joystick - seuil_joystick))
+    if ((joueur.y < LCD_WIDTH - joueur_width - joueur.dy) && (joystick_h < centre_joystick - seuil_joystick))
       joueur.y += joueur.dy;
     if ((joueur.y > joueur.dy) && (joystick_h > centre_joystick + seuil_joystick))
       joueur.y -= joueur.dy;
 
-    if ((joueur.x < LCD_WIDTH - joueur_height - joueur.dx) && (joystick_v < centre_joystick - seuil_joystick))
+    if ((joueur.x < LCD_HEIGHT - joueur_height - joueur.dx) && (joystick_v < centre_joystick - seuil_joystick))
       joueur.x += joueur.dx;
     if ((joueur.x > joueur.dx) && (joystick_v > centre_joystick + seuil_joystick))
       joueur.x -= joueur.dx;
@@ -1668,9 +1766,17 @@ void f_Joueur_1(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_block_enemie */
+
+/* ============================================================================
+ * TACHE : BLOC ENNEMIS — Deplacement, tir ennemi et detection de fin de vague
+ * ============================================================================ */
+
 void f_block_enemie(void const * argument)
 {
   /* USER CODE BEGIN f_block_enemie */
+	// Attendre que le joueur appuie sur JOUER
+	while (game_state != GAME_RUNNING)
+	    vTaskDelay(100 / portTICK_PERIOD_MS);
 
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
@@ -1779,9 +1885,17 @@ void f_block_enemie(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_projectile */
+
+/* ============================================================================
+ * TACHE : PROJECTILES — Deplacement et detection de collisions
+ * ============================================================================ */
+
 void f_projectile(void const * argument)
 {
   /* USER CODE BEGIN f_projectile */
+	// Attendre que le joueur appuie sur JOUER
+	while (game_state != GAME_RUNNING)
+	    vTaskDelay(100 / portTICK_PERIOD_MS);
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
   const TickType_t xPeriodeTache = 10 / portTICK_PERIOD_MS; // Toutes les 200 ms
@@ -1866,9 +1980,17 @@ void f_projectile(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_HUD */
+
+/* ============================================================================
+ * TACHE : HUD — Affichage du score et des points de vie
+ * ============================================================================ */
+
 void f_HUD(void const * argument)
 {
   /* USER CODE BEGIN f_HUD */
+	// Attendre que le joueur appuie sur JOUER
+	while (game_state != GAME_RUNNING)
+	    vTaskDelay(100 / portTICK_PERIOD_MS);
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
   const TickType_t xPeriodeTache = 100 / portTICK_PERIOD_MS; // Toutes les 200 ms
@@ -1877,6 +1999,7 @@ void f_HUD(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+	BSP_LCD_SetFont(&Font12); // On choisit une police plus petite pour le HUD
     sprintf(line_hud, base, (uint)wave, (uint)kill);
     lcd_plot_text_line(0, line_hud, Couleur_missile);
     for(int idx = 0; idx<VIE_MAX; idx++){
@@ -1894,9 +2017,17 @@ void f_HUD(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_chargeur */
+
+/* ============================================================================
+ * TACHE : CHARGEUR — Recharge progressive de l'attaque speciale
+ * ============================================================================ */
+
 void f_chargeur(void const * argument)
 {
   /* USER CODE BEGIN f_chargeur */
+	// Attendre que le joueur appuie sur JOUER
+	while (game_state != GAME_RUNNING)
+	    vTaskDelay(100 / portTICK_PERIOD_MS);
     TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
   const TickType_t xPeriodeTache = 5000/ 8 / portTICK_PERIOD_MS; // Toutes les 200 ms
@@ -1912,7 +2043,7 @@ void f_chargeur(void const * argument)
   /* USER CODE END f_chargeur */
 }
 
-/**
+ /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
@@ -1920,13 +2051,17 @@ void f_chargeur(void const * argument)
   * @param  htim : TIM handle
   * @retval None
   */
+
+/* ============================================================================
+ * CALLBACKS ET GESTION DES ERREURS
+ * ============================================================================ */
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6)
-  {
+  if (htim->Instance == TIM6) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -1948,7 +2083,8 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-#ifdef USE_FULL_ASSERT
+
+#ifdef  USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -1964,3 +2100,5 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
