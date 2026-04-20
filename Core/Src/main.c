@@ -34,6 +34,7 @@
 #include "stdio.h"
 #include "semphr.h"
 #include "images.h"
+#include "space_bg_480x272.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -1409,6 +1410,9 @@ void afficher_ecran_titre(void)
     while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
 
     BSP_LCD_Clear(LCD_COLOR_BLACK);
+
+    //Image de fond
+    BSP_LCD_DrawBitmap(0, 0, (uint8_t *)space_bg_480x272);
 
     // Titre principal
     BSP_LCD_SetFont(&Font24);
