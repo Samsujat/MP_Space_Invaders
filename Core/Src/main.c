@@ -339,7 +339,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* definition and creation of Queue_F */
-  osMessageQDef(Queue_F, 1, enum End_type);
+  osMessageQDef(Queue_F, 4, enum End_type);
   Queue_FHandle = osMessageCreate(osMessageQ(Queue_F), NULL);
 
   /* definition and creation of Queue_N */
@@ -1482,9 +1482,17 @@ void f_titre(void const * argument)
             uint16_t ty = TS_State.touchY[0];
 
             // Zone du bouton JOUER : x[160..320], y[170..220]
-            if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220)
-            {
-                game_state = GAME_RUNNING;
+            if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220){
+
+            	game_state = GAME_RUNNING;
+
+            	// Recréer les tâches supprimées
+				osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
+				Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
+				osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
+				Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
+				osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
+				ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
 
                 // Effacer l'écran avant de lancer le jeu
                 while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
@@ -1530,6 +1538,14 @@ void afficher_game_over(void)
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_DisplayStringAt(0, 187, (uint8_t *)"REJOUER", CENTER_MODE);
 
+    // Bouton Scores — rectangle centré
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_DrawRect(180, 230, 120, 35);
+	BSP_LCD_SetFont(&Font12);
+	BSP_LCD_SetTextColor(LCD_COLOR_RED);
+	BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+	BSP_LCD_DisplayStringAt(5, 242, (uint8_t *)"ECRAN TITRE", CENTER_MODE);
+
     xSemaphoreGive(MutexLCDHandle);
 }
 
@@ -1560,39 +1576,62 @@ void f_game_over(void const * argument)
             uint16_t tx = TS_State.touchX[0];
             uint16_t ty = TS_State.touchY[0];
 
-            // Zone du bouton REJOUER : x[160..320], y[170..220]
+            // Bouton REJOUER
             if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220)
             {
-                game_state = GAME_RUNNING;
-
-                // Remettre le joueur à l'état initial
-				  joueur.health = VIE_MAX;
-				  joueur.x = 200;
-				  joueur.y = 200;
-				  wave = 0;
-				  kill = 0;
-				  charge = 0;
-				  repopulate_ennemie_list(wave);
-				  update_leds();
-
-				  // Recréer les tâches supprimées
-				  osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
-				  Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
-
-				  osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
-				  Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
-
-				  osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
-				  ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
-
-				  // Recréer la tâche Game Over pour la prochaine mort
-				  osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 512);
-				  GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
-
-                // Effacer l'écran avant de lancer le jeu
                 while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
                 BSP_LCD_Clear(LCD_COLOR_BLACK);
                 xSemaphoreGive(MutexLCDHandle);
+
+                // Remettre le joueur à l'état initial
+                joueur.health = VIE_MAX;
+                joueur.x = 200;
+                joueur.y = 200;
+                wave = 0; kill = 0; charge = 0;
+                repopulate_ennemie_list(wave);
+                update_leds();
+                // Recréer les tâches supprimées
+                osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
+                Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
+                osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
+                Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
+                osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
+                ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
+
+                game_state = GAME_RUNNING;
+                vTaskDelete(NULL);
+                return;
+            }
+
+            //Bouton ECRAN TITRE
+            if (tx >= 180 && tx <= 300 && ty >= 230 && ty <= 255){
+
+            	game_state = TITLE_SCREEN;
+
+            	xQueueReset(Queue_FHandle);
+				xQueueReset(Queue_NHandle);
+				xQueueReset(Queue_JHandle);
+				xQueueReset(Queue_EHandle);
+
+            	// Remettre le joueur à l'état initial
+				joueur.health = VIE_MAX;
+				joueur.x = 200;
+				joueur.y = 200;
+				wave = 0; kill = 0; charge = 0;
+				repopulate_ennemie_list(wave);
+				update_leds();
+
+				// Effacer l'écran
+				while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+				BSP_LCD_Clear(LCD_COLOR_BLACK);
+				xSemaphoreGive(MutexLCDHandle);
+
+				osThreadDef(Titre, f_titre, osPriorityLow, 0, 1024);
+				TitreHandle = osThreadCreate(osThread(Titre), NULL);
+
+				// Se supprimer soi-même
+				vTaskDelete(NULL);
+				return;
             }
         }
 
@@ -1626,7 +1665,7 @@ void repopulate_ennemie_list(uint8_t wave)
 }
 
 void update_leds(){
-    for (int idx = 0; idx<=8; idx++){
+    for (int idx = 0; idx<8; idx++){
       HAL_GPIO_WritePin(Leds[idx].port, Leds[idx].pin, !(charge-1<idx));
     }
 }
@@ -1737,15 +1776,21 @@ void f_GameMaster(void const * argument)
   xQueueReset(Queue_FHandle);  // vider les messages résiduels
   for (;;)
   {
-    while (xQueueReceive(Queue_FHandle, &end, (TickType_t)10) != pdPASS)
+    xQueueReceive(Queue_FHandle, &end, portMAX_DELAY);
       ; // Tant qu'il n'y a pas de nouveau message
 
     if (end == END_MORT_JOUEUR)
     {
-      vTaskDelete(Block_EnemieHandle);
-      vTaskDelete(ProjectileHandle);
-      vTaskDelete(Joueur_1Handle);
-      game_state = GAME_OVER;
+//      vTaskDelete(Block_EnemieHandle);
+//      vTaskDelete(ProjectileHandle);
+//      vTaskDelete(Joueur_1Handle);
+
+    	osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 1024);
+    	GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
+
+      game_state = GAME_OVER;// ← signal aux tâches de s'arrêter
+      vTaskDelay(300 / portTICK_PERIOD_MS);  // laisser le temps aux tâches de finir leur cycle
+
     }
 
     if (end == END_TABLEAU_VIDE)
@@ -1814,6 +1859,12 @@ void f_Joueur_1(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+
+	if (game_state != GAME_RUNNING){
+		  vTaskDelete(NULL);  // se supprime soi-même si le jeu n'est plus en cours
+		  return;
+	  }
+
     lcd_plot_rect(joueur.x, joueur.y, joueur_width, joueur_height, Couleur_vide);
     // BSP_LCD_DrawBitmap(uint32_t Xpos, uint32_t Ypos, uint8_t *pbmp)
     HAL_ADC_ConfigChannel(&hadc3, &sConfig3);
@@ -1915,6 +1966,12 @@ void f_block_enemie(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+
+	if (game_state != GAME_RUNNING){
+		  vTaskDelete(NULL);  // se supprime proprement
+		  return;
+	  }
+
     while (xQueueReceive(Queue_EHandle, &collision, 0) == pdPASS)
     {
       Table_ennemis[collision.idx1][collision.idx2].health -= collision.damage;
@@ -2037,6 +2094,12 @@ void f_projectile(void const * argument)
     liste_missile[idx_missile] = missile;
   for (;;)
   {
+
+	if (game_state != GAME_RUNNING){
+		  vTaskDelete(NULL);  // se supprime proprement, sans tenir de mutex
+		  return;
+	  }
+
     while (xQueueReceive(Queue_NHandle, &missile, 0) == pdPASS)
     {
       for (int idx_missile = 0; idx_missile < TAILLE_LISTE_MISSILE; idx_missile++)
