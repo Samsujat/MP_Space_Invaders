@@ -88,6 +88,8 @@ osThreadId Block_EnemieHandle;
 osThreadId ProjectileHandle;
 osThreadId HUDHandle;
 osThreadId chargeurHandle;
+osThreadId TitreHandle;
+osThreadId GameOverHandle;
 osMessageQId Queue_FHandle;
 osMessageQId Queue_NHandle;
 osMessageQId Queue_JHandle;
@@ -125,6 +127,7 @@ void f_projectile(void const * argument);
 void f_HUD(void const * argument);
 void f_chargeur(void const * argument);
 void f_titre(void const * argument);
+void f_game_over(void const * argument);
 
 /* USER CODE BEGIN PFP */
 uint8_t proba_bernoulli(uint32_t numerateur, uint32_t denominateur);
@@ -141,7 +144,9 @@ uint8_t proba_tirrage(uint8_t nombre_valeur);
 enum Game_State
 {
   TITLE_SCREEN,
-  GAME_RUNNING
+  GAME_RUNNING,
+  GAME_OVER,
+  SCORE_SCREEN
 };
 
 volatile enum Game_State game_state = TITLE_SCREEN;
@@ -383,10 +388,12 @@ int main(void)
   vQueueAddToRegistry(Queue_JHandle, "Queue Joueur");
   vQueueAddToRegistry(Queue_EHandle, "Queue Ennemie");
   vQueueAddToRegistry(Queue_FHandle, "Queue Fin");
-  osThreadId TitreHandle;
 
   osThreadDef(Titre, f_titre, osPriorityNormal, 0, 512);
   TitreHandle = osThreadCreate(osThread(Titre), NULL);
+
+  osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 512);
+  GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -1395,15 +1402,16 @@ static int envoie_score(int score)
 }
  */
 
+/* ============================================================================
+ * ECRAN TITRE
+ * ============================================================================ */
+
 /*
   * @brief  Affichage de l'écran titre
   * @param None
   * @retval None
   */
 
-/* ============================================================================
- * ECRAN TITRE
- * ============================================================================ */
 
 void afficher_ecran_titre(void)
 {
@@ -1433,6 +1441,14 @@ void afficher_ecran_titre(void)
     BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
     BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
     BSP_LCD_DisplayStringAt(0, 187, (uint8_t *)"JOUER", CENTER_MODE);
+
+    // Bouton Scores — rectangle centré
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_DrawRect(180, 230, 120, 35);
+	BSP_LCD_SetFont(&Font16);
+	BSP_LCD_SetTextColor(LCD_COLOR_RED);
+	BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+	BSP_LCD_DisplayStringAt(5, 242, (uint8_t *)"SCORES", CENTER_MODE);
 
     xSemaphoreGive(MutexLCDHandle);
 }
@@ -1469,6 +1485,109 @@ void f_titre(void const * argument)
             if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220)
             {
                 game_state = GAME_RUNNING;
+
+                // Effacer l'écran avant de lancer le jeu
+                while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+                BSP_LCD_Clear(LCD_COLOR_BLACK);
+                xSemaphoreGive(MutexLCDHandle);
+            }
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, xPeriodeTache);
+    }
+}
+
+/* ============================================================================
+ * GAME OVER
+ * ============================================================================ */
+
+/*
+  * @brief  Affichage de l'écran de fin de partie
+  * @param None
+  * @retval None
+  */
+void afficher_game_over(void)
+{
+    while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+
+    BSP_LCD_Clear(LCD_COLOR_BLACK);
+
+    //Image de fond
+    BSP_LCD_DrawBitmap(0, 0, (uint8_t *)space_bg_480x272);
+
+    // Titre principal
+    BSP_LCD_SetFont(&Font24);
+    BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 60, (uint8_t *)"GAME OVER", CENTER_MODE);
+
+    // Bouton REJOUER — rectangle centré
+    // Ecran 480x272 : bouton 160x50 centré => x=160, y=170
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_DrawRect(160, 170, 160, 50);
+    BSP_LCD_SetFont(&Font20);
+    BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 187, (uint8_t *)"REJOUER", CENTER_MODE);
+
+    xSemaphoreGive(MutexLCDHandle);
+}
+
+void f_game_over(void const * argument)
+{
+    static TS_StateTypeDef TS_State;
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    const TickType_t xPeriodeTache = 50 / portTICK_PERIOD_MS;
+
+    while (game_state != GAME_OVER)
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        afficher_game_over();  // On affiche seulement maintenant
+
+    for (;;)
+    {
+        if (game_state != GAME_OVER)
+        {
+            vTaskDelete(NULL); // On supprime la tache une fois le jeu lancé
+            return;
+        }
+
+        BSP_TS_GetState(&TS_State);
+
+        if (TS_State.touchDetected)
+        {
+            uint16_t tx = TS_State.touchX[0];
+            uint16_t ty = TS_State.touchY[0];
+
+            // Zone du bouton REJOUER : x[160..320], y[170..220]
+            if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220)
+            {
+                game_state = GAME_RUNNING;
+
+                // Remettre le joueur à l'état initial
+				  joueur.health = VIE_MAX;
+				  joueur.x = 200;
+				  joueur.y = 200;
+				  wave = 0;
+				  kill = 0;
+				  charge = 0;
+				  repopulate_ennemie_list(wave);
+				  update_leds();
+
+				  // Recréer les tâches supprimées
+				  osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
+				  Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
+
+				  osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
+				  Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
+
+				  osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
+				  ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
+
+				  // Recréer la tâche Game Over pour la prochaine mort
+				  osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 512);
+				  GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
 
                 // Effacer l'écran avant de lancer le jeu
                 while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
@@ -1615,6 +1734,7 @@ void f_GameMaster(void const * argument)
   repopulate_ennemie_list(wave);
   enum End_type end;
   /* Infinite loop */
+  xQueueReset(Queue_FHandle);  // vider les messages résiduels
   for (;;)
   {
     while (xQueueReceive(Queue_FHandle, &end, (TickType_t)10) != pdPASS)
@@ -1625,9 +1745,7 @@ void f_GameMaster(void const * argument)
       vTaskDelete(Block_EnemieHandle);
       vTaskDelete(ProjectileHandle);
       vTaskDelete(Joueur_1Handle);
-      uint8_t msg[] = "GAME OVER";
-      lcd_plot_text_pos(BSP_LCD_GetXSize() / 2, BSP_LCD_GetYSize() / 2, msg, Couleur_joueur, CENTER_MODE);
-      //TODO L'affichage de l'écran de fin et des scores
+      game_state = GAME_OVER;
     }
 
     if (end == END_TABLEAU_VIDE)
