@@ -53,16 +53,13 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-
-/* ============================================================================
- * HANDLES PERIPHERIQUES
- * ============================================================================ */
 ADC_HandleTypeDef hadc1;
 ADC_HandleTypeDef hadc3;
 
 CRC_HandleTypeDef hcrc;
 
 DAC_HandleTypeDef hdac;
+DMA_HandleTypeDef hdma_dac1;
 
 DMA2D_HandleTypeDef hdma2d;
 
@@ -70,17 +67,16 @@ LTDC_HandleTypeDef hltdc;
 
 RNG_HandleTypeDef hrng;
 
+SD_HandleTypeDef hsd1;
+
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim5;
+TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim8;
 
 SDRAM_HandleTypeDef hsdram1;
-
-/* ============================================================================
- * HANDLES FREERTOS — TACHES, FILES, MUTEX
- * ============================================================================ */
 
 osThreadId GameMasterHandle;
 osThreadId Joueur_1Handle;
@@ -88,25 +84,22 @@ osThreadId Block_EnemieHandle;
 osThreadId ProjectileHandle;
 osThreadId HUDHandle;
 osThreadId chargeurHandle;
-osThreadId TitreHandle;
-osThreadId GameOverHandle;
 osMessageQId Queue_FHandle;
 osMessageQId Queue_NHandle;
 osMessageQId Queue_JHandle;
 osMessageQId Queue_EHandle;
 osMutexId MutexLCDHandle;
+osThreadId TitreHandle;
+osThreadId GameOverHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-
-/* ============================================================================
- * PROTOTYPAGE DES FONCTIONS
- * ============================================================================ */
-
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_TIM1_Init(void);
@@ -120,6 +113,8 @@ static void MX_DMA2D_Init(void);
 static void MX_CRC_Init(void);
 static void MX_RNG_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM7_Init(void);
+static void MX_SDMMC1_SD_Init(void);
 void f_GameMaster(void const * argument);
 void f_Joueur_1(void const * argument);
 void f_block_enemie(void const * argument);
@@ -258,13 +253,9 @@ struct Monster Table_ennemis[8][3];
   * @brief  The application entry point.
   * @retval int
   */
-
-/* ============================================================================
- * FONCTION PRINCIPALE
- * ============================================================================ */
-
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
   static TS_StateTypeDef TS_State;
   ADC_ChannelConfTypeDef sConfig = {0};
@@ -285,12 +276,16 @@ int main(void)
   /* Configure the system clock */
   SystemClock_Config();
 
+  /* Configure the peripherals common clocks */
+  PeriphCommonClock_Config();
+
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_ADC3_Init();
   MX_LTDC_Init();
   MX_TIM1_Init();
@@ -304,6 +299,8 @@ int main(void)
   MX_CRC_Init();
   MX_RNG_Init();
   MX_ADC1_Init();
+  MX_TIM7_Init();
+  MX_SDMMC1_SD_Init();
   /* USER CODE BEGIN 2 */
   BSP_LCD_Init();
   BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
@@ -339,7 +336,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* definition and creation of Queue_F */
-  osMessageQDef(Queue_F, 4, enum End_type);
+  osMessageQDef(Queue_F, 1, enum End_type);
   Queue_FHandle = osMessageCreate(osMessageQ(Queue_F), NULL);
 
   /* definition and creation of Queue_N */
@@ -364,24 +361,24 @@ int main(void)
   GameMasterHandle = osThreadCreate(osThread(GameMaster), NULL);
 
   /* definition and creation of Joueur_1 */
-  osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
-  Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
+  //osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
+  //Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
 
   /* definition and creation of Block_Enemie */
-  osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
-  Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
+  //osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
+  //Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
 
   /* definition and creation of Projectile */
-  osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
-  ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
+  //osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
+  //ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
 
   /* definition and creation of HUD */
-  osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
-  HUDHandle = osThreadCreate(osThread(HUD), NULL);
+  //osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
+  //HUDHandle = osThreadCreate(osThread(HUD), NULL);
 
   /* definition and creation of chargeur */
-  osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 128);
-  chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
+  //osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 128);
+  //chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   vQueueAddToRegistry(Queue_NHandle, "Queue Missile");
@@ -392,14 +389,15 @@ int main(void)
   osThreadDef(Titre, f_titre, osPriorityNormal, 0, 512);
   TitreHandle = osThreadCreate(osThread(Titre), NULL);
 
-  osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 512);
-  GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
+  //osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 512);
+  //GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
   osKernelStart();
 
   /* We should never get here as control is now taken by the scheduler */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
@@ -447,15 +445,16 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 
   /** Configure LSE Drive Capability
   */
   HAL_PWR_EnableBkUpAccess();
+
   /** Configure the main internal regulator output voltage
   */
   __HAL_RCC_PWR_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
@@ -471,12 +470,14 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Activate the Over-Drive mode
   */
   if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -490,7 +491,20 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_CLK48;
+}
+
+/**
+  * @brief Peripherals Common Clock Configuration
+  * @retval None
+  */
+void PeriphCommonClock_Config(void)
+{
+  RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+  /** Initializes the peripherals clock
+  */
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_SDMMC1
+                              |RCC_PERIPHCLK_CLK48;
   PeriphClkInitStruct.PLLSAI.PLLSAIN = 384;
   PeriphClkInitStruct.PLLSAI.PLLSAIR = 5;
   PeriphClkInitStruct.PLLSAI.PLLSAIQ = 2;
@@ -498,6 +512,7 @@ void SystemClock_Config(void)
   PeriphClkInitStruct.PLLSAIDivQ = 1;
   PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_8;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLLSAIP;
+  PeriphClkInitStruct.Sdmmc1ClockSelection = RCC_SDMMC1CLKSOURCE_CLK48;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -521,6 +536,7 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 1 */
 
   /* USER CODE END ADC1_Init 1 */
+
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
@@ -539,6 +555,7 @@ static void MX_ADC1_Init(void)
   {
     Error_Handler();
   }
+
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_0;
@@ -571,6 +588,7 @@ static void MX_ADC3_Init(void)
   /* USER CODE BEGIN ADC3_Init 1 */
 
   /* USER CODE END ADC3_Init 1 */
+
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc3.Instance = ADC3;
@@ -589,6 +607,7 @@ static void MX_ADC3_Init(void)
   {
     Error_Handler();
   }
+
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
   sConfig.Channel = ADC_CHANNEL_8;
@@ -652,6 +671,7 @@ static void MX_DAC_Init(void)
   /* USER CODE BEGIN DAC_Init 1 */
 
   /* USER CODE END DAC_Init 1 */
+
   /** DAC Initialization
   */
   hdac.Instance = DAC;
@@ -659,6 +679,7 @@ static void MX_DAC_Init(void)
   {
     Error_Handler();
   }
+
   /** DAC channel OUT1 config
   */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
@@ -795,6 +816,42 @@ static void MX_RNG_Init(void)
   /* USER CODE BEGIN RNG_Init 2 */
 
   /* USER CODE END RNG_Init 2 */
+
+}
+
+/**
+  * @brief SDMMC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SDMMC1_SD_Init(void)
+{
+
+  /* USER CODE BEGIN SDMMC1_Init 0 */
+
+  /* USER CODE END SDMMC1_Init 0 */
+
+  /* USER CODE BEGIN SDMMC1_Init 1 */
+
+  /* USER CODE END SDMMC1_Init 1 */
+  hsd1.Instance = SDMMC1;
+  hsd1.Init.ClockEdge = SDMMC_CLOCK_EDGE_RISING;
+  hsd1.Init.ClockBypass = SDMMC_CLOCK_BYPASS_DISABLE;
+  hsd1.Init.ClockPowerSave = SDMMC_CLOCK_POWER_SAVE_DISABLE;
+  hsd1.Init.BusWide = SDMMC_BUS_WIDE_1B;
+  hsd1.Init.HardwareFlowControl = SDMMC_HARDWARE_FLOW_CONTROL_DISABLE;
+  hsd1.Init.ClockDiv = 0;
+  if (HAL_SD_Init(&hsd1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_SD_ConfigWideBusOperation(&hsd1, SDMMC_BUS_WIDE_4B) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SDMMC1_Init 2 */
+
+  /* USER CODE END SDMMC1_Init 2 */
 
 }
 
@@ -1002,6 +1059,44 @@ static void MX_TIM5_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 0;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 6250;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief TIM8 Initialization Function
   * @param None
   * @retval None
@@ -1080,6 +1175,22 @@ static void MX_TIM8_Init(void)
 
 }
 
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+}
+
 /* FMC initialization function */
 static void MX_FMC_Init(void)
 {
@@ -1135,17 +1246,20 @@ static void MX_FMC_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOJ_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOI_CLK_ENABLE();
   __HAL_RCC_GPIOK_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
 
@@ -1183,7 +1297,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : ARDUINO_SCL_D15_Pin ARDUINO_SDA_D14_Pin */
   GPIO_InitStruct.Pin = ARDUINO_SCL_D15_Pin|ARDUINO_SDA_D14_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -1357,7 +1471,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pins : LCD_SCL_Pin LCD_SDA_Pin */
   GPIO_InitStruct.Pin = LCD_SCL_Pin|LCD_SDA_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
   HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
@@ -1378,6 +1492,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF5_SPI2;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -1487,13 +1604,16 @@ void f_titre(void const * argument)
             	game_state = GAME_RUNNING;
 
             	// Recréer les tâches supprimées
+            	osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 256);
+            	chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
 				osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
 				Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
 				osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
 				Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
 				osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
 				ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
-
+				osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
+				HUDHandle = osThreadCreate(osThread(HUD), NULL);
                 // Effacer l'écran avant de lancer le jeu
                 while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
                 BSP_LCD_Clear(LCD_COLOR_BLACK);
@@ -1590,6 +1710,7 @@ void f_game_over(void const * argument)
                 wave = 0; kill = 0; charge = 0;
                 repopulate_ennemie_list(wave);
                 update_leds();
+                game_state = GAME_RUNNING;
                 // Recréer les tâches supprimées
                 osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
                 Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
@@ -1597,8 +1718,12 @@ void f_game_over(void const * argument)
                 Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
                 osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
                 ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
+                osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
+                HUDHandle = osThreadCreate(osThread(HUD), NULL);
 
-                game_state = GAME_RUNNING;
+                osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 256);
+                chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
+
                 vTaskDelete(NULL);
                 return;
             }
@@ -1757,11 +1882,6 @@ uint8_t colision_missile(uint16_t m_pos_x, uint16_t m_pos_y, uint16_t o_pos_x, u
   * @retval None
   */
 /* USER CODE END Header_f_GameMaster */
-
-/* ============================================================================
- * TACHE : GAME MASTER — Gestion des fins de partie et des vagues
- * ============================================================================ */
-
 void f_GameMaster(void const * argument)
 {
   /* init code for LWIP */
@@ -1779,16 +1899,18 @@ void f_GameMaster(void const * argument)
     xQueueReceive(Queue_FHandle, &end, portMAX_DELAY);
       ; // Tant qu'il n'y a pas de nouveau message
 
-    if (end == END_MORT_JOUEUR)
+    if (end == END_MORT_JOUEUR  && game_state == GAME_RUNNING)
     {
 //      vTaskDelete(Block_EnemieHandle);
 //      vTaskDelete(ProjectileHandle);
 //      vTaskDelete(Joueur_1Handle);
 
+        game_state = GAME_OVER;// ← signal aux tâches de s'arrêter
+
+
     	osThreadDef(Game_Over, f_game_over, osPriorityNormal, 0, 1024);
     	GameOverHandle = osThreadCreate(osThread(Game_Over), NULL);
 
-      game_state = GAME_OVER;// ← signal aux tâches de s'arrêter
       vTaskDelay(300 / portTICK_PERIOD_MS);  // laisser le temps aux tâches de finir leur cycle
 
     }
@@ -1810,16 +1932,8 @@ void f_GameMaster(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_Joueur_1 */
-
-/* ============================================================================
- * TACHE : JOUEUR — Deplacement, tir et gestion des degats
- * ============================================================================ */
-
 void f_Joueur_1(void const * argument)
 {
-	// Attendre que le joueur appuie sur JOUER
-	while (game_state != GAME_RUNNING)
-	    vTaskDelay(100 / portTICK_PERIOD_MS);
   /* USER CODE BEGIN f_Joueur_1 */
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
@@ -1939,11 +2053,6 @@ void f_Joueur_1(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_block_enemie */
-
-/* ============================================================================
- * TACHE : BLOC ENNEMIS — Deplacement, tir ennemi et detection de fin de vague
- * ============================================================================ */
-
 void f_block_enemie(void const * argument)
 {
   /* USER CODE BEGIN f_block_enemie */
@@ -2064,11 +2173,6 @@ void f_block_enemie(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_projectile */
-
-/* ============================================================================
- * TACHE : PROJECTILES — Deplacement et detection de collisions
- * ============================================================================ */
-
 void f_projectile(void const * argument)
 {
   /* USER CODE BEGIN f_projectile */
@@ -2165,11 +2269,6 @@ void f_projectile(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_HUD */
-
-/* ============================================================================
- * TACHE : HUD — Affichage du score et des points de vie
- * ============================================================================ */
-
 void f_HUD(void const * argument)
 {
   /* USER CODE BEGIN f_HUD */
@@ -2184,6 +2283,12 @@ void f_HUD(void const * argument)
   /* Infinite loop */
   for (;;)
   {
+	  if (game_state != GAME_RUNNING)
+	  {
+	      vTaskDelete(NULL);
+	      return;
+	  }
+
 	BSP_LCD_SetFont(&Font12); // On choisit une police plus petite pour le HUD
     sprintf(line_hud, base, (uint)wave, (uint)kill);
     lcd_plot_text_line(0, line_hud, Couleur_missile);
@@ -2202,11 +2307,6 @@ void f_HUD(void const * argument)
 * @retval None
 */
 /* USER CODE END Header_f_chargeur */
-
-/* ============================================================================
- * TACHE : CHARGEUR — Recharge progressive de l'attaque speciale
- * ============================================================================ */
-
 void f_chargeur(void const * argument)
 {
   /* USER CODE BEGIN f_chargeur */
@@ -2219,6 +2319,11 @@ void f_chargeur(void const * argument)
   /* Infinite loop */
   for(;;)
   {
+	  if (game_state != GAME_RUNNING)
+	  {
+	      vTaskDelete(NULL);
+	      return;
+	  }
     if (charge < 8)
       charge++;
     update_leds();
@@ -2228,7 +2333,7 @@ void f_chargeur(void const * argument)
   /* USER CODE END f_chargeur */
 }
 
- /**
+/**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM6 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
@@ -2236,17 +2341,13 @@ void f_chargeur(void const * argument)
   * @param  htim : TIM handle
   * @retval None
   */
-
-/* ============================================================================
- * CALLBACKS ET GESTION DES ERREURS
- * ============================================================================ */
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
+  if (htim->Instance == TIM6)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -2268,8 +2369,7 @@ void Error_Handler(void)
   }
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.
@@ -2285,5 +2385,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
