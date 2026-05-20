@@ -127,6 +127,8 @@ void f_game_over(void const * argument);
 /* USER CODE BEGIN PFP */
 uint8_t proba_bernoulli(uint32_t numerateur, uint32_t denominateur);
 uint8_t proba_tirrage(uint8_t nombre_valeur);
+void ajouter_score(uint8_t score);
+void afficher_ecran_scores(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -243,6 +245,8 @@ uint32_t LCD_COLOR_BACKGROUND = LCD_COLOR_BLACK;
 uint8_t wave = 0;
 uint8_t kill = 0;
 uint8_t charge = 0;
+
+uint8_t best_scores[5] = {0, 0, 0, 0, 0};
 
 // Tableau des monstres (8 par ligne, sur 3 ligne)
 struct Monster Table_ennemis[8][3];
@@ -1503,6 +1507,61 @@ static void MX_GPIO_Init(void)
  * FONCTIONS UTILITAIRES DU JEU
  * ============================================================================ */
 
+void ajouter_score(uint8_t score)
+{
+    if (score == 0)
+        return;
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (score > best_scores[i])
+        {
+            for (int j = 4; j > i; j--)
+            {
+                best_scores[j] = best_scores[j - 1];
+            }
+
+            best_scores[i] = score;
+            break;
+        }
+    }
+}
+
+void afficher_ecran_scores(void)
+{
+    char ligne[40];
+
+    while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+
+    BSP_LCD_Clear(LCD_COLOR_BLACK);
+    BSP_LCD_DrawBitmap(0, 0, (uint8_t *)space_bg_480x272);
+
+    BSP_LCD_SetFont(&Font24);
+    BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 30, (uint8_t *)"BEST SCORES", CENTER_MODE);
+
+    BSP_LCD_SetFont(&Font16);
+    BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
+
+    for (int i = 0; i < 5; i++)
+    {
+        sprintf(ligne, "%d. %3u kills", i + 1, best_scores[i]);
+        BSP_LCD_DisplayStringAt(0, 75 + i * 25, (uint8_t *)ligne, CENTER_MODE);
+    }
+
+    // Bouton retour
+    BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+    BSP_LCD_DrawRect(160, 220, 160, 35);
+
+    BSP_LCD_SetFont(&Font16);
+    BSP_LCD_SetTextColor(LCD_COLOR_RED);
+    BSP_LCD_SetBackColor(LCD_COLOR_BLACK);
+    BSP_LCD_DisplayStringAt(0, 230, (uint8_t *)"RETOUR", CENTER_MODE);
+
+    xSemaphoreGive(MutexLCDHandle);
+}
+
 uint8_t *(tex_ennemis[4]) = {&tex_ennemi_1, &tex_ennemi_2, &tex_ennemi_3, &tex_ennemi_4};
 const uint32_t Couleur_joueur = LCD_COLOR_CYAN;
 const uint32_t Couleur_monstre = LCD_COLOR_RED;
@@ -1585,7 +1644,7 @@ void f_titre(void const * argument)
 
     for (;;)
     {
-        if (game_state != TITLE_SCREEN)
+        if (game_state != TITLE_SCREEN  && game_state != SCORE_SCREEN)
         {
             vTaskDelete(NULL); // On supprime la tache une fois le jeu lancé
             return;
@@ -1598,27 +1657,48 @@ void f_titre(void const * argument)
             uint16_t tx = TS_State.touchX[0];
             uint16_t ty = TS_State.touchY[0];
 
-            // Zone du bouton JOUER : x[160..320], y[170..220]
-            if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220){
+            if (game_state == TITLE_SCREEN){
 
-            	game_state = GAME_RUNNING;
+				// Zone du bouton JOUER : x[160..320], y[170..220]
+				if (tx >= 160 && tx <= 320 && ty >= 170 && ty <= 220){
 
-            	// Recréer les tâches supprimées
-            	osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 256);
-            	chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
-				osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
-				Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
-				osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
-				Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
-				osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
-				ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
-				osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
-				HUDHandle = osThreadCreate(osThread(HUD), NULL);
-                // Effacer l'écran avant de lancer le jeu
-                while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
-                BSP_LCD_Clear(LCD_COLOR_BLACK);
-                xSemaphoreGive(MutexLCDHandle);
+					game_state = GAME_RUNNING;
+
+					// Recréer les tâches supprimées
+					osThreadDef(chargeur, f_chargeur, osPriorityBelowNormal, 0, 256);
+					chargeurHandle = osThreadCreate(osThread(chargeur), NULL);
+					osThreadDef(Joueur_1, f_Joueur_1, osPriorityAboveNormal, 0, 1024);
+					Joueur_1Handle = osThreadCreate(osThread(Joueur_1), NULL);
+					osThreadDef(Block_Enemie, f_block_enemie, osPriorityLow, 0, 1024);
+					Block_EnemieHandle = osThreadCreate(osThread(Block_Enemie), NULL);
+					osThreadDef(Projectile, f_projectile, osPriorityNormal, 0, 1024);
+					ProjectileHandle = osThreadCreate(osThread(Projectile), NULL);
+					osThreadDef(HUD, f_HUD, osPriorityBelowNormal, 0, 1024);
+					HUDHandle = osThreadCreate(osThread(HUD), NULL);
+					// Effacer l'écran avant de lancer le jeu
+					while (xSemaphoreTake(MutexLCDHandle, (TickType_t)10) != pdPASS);
+					BSP_LCD_Clear(LCD_COLOR_BLACK);
+					xSemaphoreGive(MutexLCDHandle);
+				}
+
+				// Bouton SCORES : x[180..300], y[230..265]
+				if (tx >= 180 && tx <= 300 && ty >= 230 && ty <= 265)
+				{
+					game_state = SCORE_SCREEN;
+					afficher_ecran_scores();
+					vTaskDelay(300 / portTICK_PERIOD_MS);
+				}
             }
+            else if (game_state == SCORE_SCREEN)
+			{
+				// Bouton RETOUR : x[160..320], y[220..255]
+				if (tx >= 160 && tx <= 320 && ty >= 220 && ty <= 255)
+				{
+					game_state = TITLE_SCREEN;
+					afficher_ecran_titre();
+					vTaskDelay(300 / portTICK_PERIOD_MS);
+				}
+			}
         }
 
         vTaskDelayUntil(&xLastWakeTime, xPeriodeTache);
@@ -1904,6 +1984,8 @@ void f_GameMaster(void const * argument)
 //      vTaskDelete(Block_EnemieHandle);
 //      vTaskDelete(ProjectileHandle);
 //      vTaskDelete(Joueur_1Handle);
+
+        ajouter_score(kill);
 
         game_state = GAME_OVER;// ← signal aux tâches de s'arrêter
 
